@@ -33,7 +33,9 @@ fn memcpy_test(size: usize, threads: usize) {
     let mut src = Vec::<u8>::with_capacity(size);
     let mut dst = Vec::<u8>::with_capacity(size);
 
-    // touch all allocated pages
+    // it's important to touch all allocated pages, we don't want to count the page faults the
+    // first time they're used
+    // also, if we have initialized vectors, then we can use the nice slice APIs
     src.resize(size, 0xBE);
     dst.resize(size, 0xEF);
 
