@@ -1,5 +1,6 @@
 use clap::Parser;
 use clap_derive::{Parser, Subcommand};
+use xshell::Shell;
 
 #[derive(Debug, Subcommand)]
 enum Cmd {
@@ -17,6 +18,15 @@ enum Cmd {
 struct Cli {
     #[command(subcommand)]
     command: Cmd,
+}
+
+fn print_throughput_ghz(bytes_per_sec: f64) {
+    let sh = Shell::new().unwrap();
+
+    let hz = bytes_per_sec.to_string();
+    if let Err(err) = xshell::cmd!(sh, "units -o'%.2f' {hz}Hz GHz").run() {
+        eprintln!("Failed to convert bytes per sec to GB per sec: {err:?}");
+    }
 }
 
 fn memcpy_test(size: usize, threads: usize) {
@@ -51,7 +61,11 @@ fn memcpy_test(size: usize, threads: usize) {
 
     let dur = end - start;
     println!("memcpy test of {size} bytes on {threads} threads duration: {dur:?}");
-    println!("throughput: {}", size as f64 / dur.as_secs_f64())
+    println!(
+        "throughput: {} bytes per second",
+        size as f64 / dur.as_secs_f64()
+    );
+    print_throughput_ghz(size as f64 / dur.as_secs_f64());
 }
 
 fn main() {
