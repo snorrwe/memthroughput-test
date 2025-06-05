@@ -37,24 +37,28 @@ fn memcpy_test(size: usize, threads: usize) {
     src.resize(size, 0xBE);
     dst.resize(size, 0xEF);
 
-    let start;
+    let mut start = std::time::Instant::now();
     let end;
     if threads <= 1 {
-        start = std::time::Instant::now();
         dst.copy_from_slice(src.as_slice());
         end = std::time::Instant::now();
     } else {
         let num_threads = threads;
 
-        start = std::time::Instant::now();
+        let latch = latches::sync::Latch::new(num_threads + 1);
+
         std::thread::scope(|s| {
-            let mut threads = Vec::with_capacity(threads);
             let chunk_size = (size + 1) / num_threads;
             for (src, dst) in src.chunks(chunk_size).zip(dst.chunks_mut(chunk_size)) {
-                threads.push(s.spawn(|| {
+                s.spawn(|| {
+                    latch.count_down();
+                    latch.wait();
                     dst.copy_from_slice(src);
-                }));
+                });
             }
+            latch.count_down();
+            latch.wait();
+            start = std::time::Instant::now();
         });
         end = std::time::Instant::now();
     }

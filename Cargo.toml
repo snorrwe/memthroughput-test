@@ -6,4 +6,5 @@ edition = "2024"
 [dependencies]
 clap = "4.5.39"
 clap_derive = "4.5.32"
+latches = "0.2.0"
 xshell = "0.2.7"
