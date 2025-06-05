@@ -48,7 +48,8 @@ fn memcpy_test(size: usize, threads: usize) {
         let latch = latches::sync::Latch::new(num_threads + 1);
 
         std::thread::scope(|s| {
-            let chunk_size = (size + 1) / num_threads;
+            let chunk_size = size.div_ceil(num_threads);
+            debug_assert!(chunk_size * num_threads >= size);
             for (src, dst) in src.chunks(chunk_size).zip(dst.chunks_mut(chunk_size)) {
                 s.spawn(|| {
                     latch.count_down();
