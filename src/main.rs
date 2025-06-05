@@ -8,7 +8,17 @@ enum Cmd {
         /// buffer size in bytes
         #[arg(short, long, default_value_t = 1048576)]
         size: usize,
-        /// number of threads to perform the copy on
+        /// number of threads to perform the copy on, splitting the buffer into threads number of
+        /// chunks
+        #[arg(short, long, default_value_t = std::thread::available_parallelism().map(|x|x.get()).unwrap_or(1))]
+        threads: usize,
+    },
+    Memset {
+        /// buffer size in bytes
+        #[arg(short, long, default_value_t = 1048576)]
+        size: usize,
+        /// number of threads to perform the memset on, splitting the buffer into threads number of
+        /// chunks
         #[arg(short, long, default_value_t = std::thread::available_parallelism().map(|x|x.get()).unwrap_or(1))]
         threads: usize,
     },
@@ -75,10 +85,55 @@ fn memcpy_test(size: usize, threads: usize) {
     print_throughput_ghz(size as f64 / dur.as_secs_f64());
 }
 
+fn memset_test(size: usize, threads: usize) {
+    let mut buf = Vec::<u8>::with_capacity(size);
+
+    // it's important to touch all allocated pages, we don't want to count the page faults the
+    // first time they're used
+    // also, if we have initialized vectors, then we can use the nice slice APIs
+    buf.resize(size, 0xBE);
+
+    let mut start = std::time::Instant::now();
+    let end;
+    if threads <= 1 {
+        buf.as_mut_slice().fill(0xFE);
+        end = std::time::Instant::now();
+    } else {
+        let num_threads = threads;
+
+        let latch = latches::sync::Latch::new(num_threads + 1);
+
+        std::thread::scope(|s| {
+            let chunk_size = size.div_ceil(num_threads);
+            debug_assert!(chunk_size * num_threads >= size);
+            for b in buf.chunks_mut(chunk_size) {
+                s.spawn(|| {
+                    latch.count_down();
+                    latch.wait();
+                    b.fill(0xFE);
+                });
+            }
+            latch.count_down();
+            latch.wait();
+            start = std::time::Instant::now();
+        });
+        end = std::time::Instant::now();
+    }
+
+    let dur = end - start;
+    println!("memset test of {size} bytes on {threads} threads duration: {dur:?}");
+    println!(
+        "throughput: {} bytes per second",
+        size as f64 / dur.as_secs_f64()
+    );
+    print_throughput_ghz(size as f64 / dur.as_secs_f64());
+}
+
 fn main() {
     let args = Cli::parse();
 
     match args.command {
         Cmd::Memcpy { size, threads } => memcpy_test(size, threads),
+        Cmd::Memset { size, threads } => memset_test(size, threads),
     }
 }
