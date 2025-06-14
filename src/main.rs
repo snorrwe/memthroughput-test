@@ -1,6 +1,7 @@
+use std::io::Write as _;
+
 use clap::Parser;
 use clap_derive::{Parser, Subcommand};
-use xshell::Shell;
 
 #[derive(Debug, Subcommand)]
 enum Cmd {
@@ -30,13 +31,27 @@ struct Cli {
     command: Cmd,
 }
 
-fn print_throughput_ghz(bytes_per_sec: f64) {
-    let sh = Shell::new().unwrap();
-
-    let hz = bytes_per_sec.to_string();
-    if let Err(err) = xshell::cmd!(sh, "units -t -v -o'%.2f' {hz}bytes/s GB/s").run() {
-        eprintln!("Failed to convert bytes per sec to GB per sec: {err:?}");
+fn fmt_bytes(mut w: impl std::io::Write, bytes: f64) -> std::io::Result<()> {
+    if bytes < 1000.0 {
+        write!(w, "{bytes:.2} bytes/s")
+    } else if bytes < 10e3 {
+        write!(w, "{:.2} KB/s", bytes / 1e3)
+    } else if bytes < 10e6 {
+        write!(w, "{:.2} MB/s", bytes / 1e6)
+    } else if bytes < 10e9 {
+        write!(w, "{:.2} GB/s", bytes / 1e9)
+    } else if bytes < 10e12 {
+        write!(w, "{:.2} TB/s", bytes / 1e12)
+    } else {
+        write!(w, "{bytes:.2} bytes/s")
     }
+}
+
+fn print_throughput_ghz(bytes_per_sec: f64) {
+    let mut stdout = std::io::stdout().lock();
+
+    fmt_bytes(&mut stdout, bytes_per_sec).unwrap();
+    writeln!(&mut stdout, "/s").unwrap();
 }
 
 fn memcpy_test(size: usize, threads: usize) {
