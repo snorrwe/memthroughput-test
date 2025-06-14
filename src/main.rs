@@ -34,7 +34,7 @@ fn print_throughput_ghz(bytes_per_sec: f64) {
     let sh = Shell::new().unwrap();
 
     let hz = bytes_per_sec.to_string();
-    if let Err(err) = xshell::cmd!(sh, "units -o'%.2f' {hz}bytes/s GB/s").run() {
+    if let Err(err) = xshell::cmd!(sh, "units -t -v -o'%.2f' {hz}bytes/s GB/s").run() {
         eprintln!("Failed to convert bytes per sec to GB per sec: {err:?}");
     }
 }
