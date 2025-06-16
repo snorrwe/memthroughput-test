@@ -6,7 +6,7 @@ _run threads n size:
     echo running {{ n }} tests with buffer size $(units -t {{ size }}bytes GiB)GiB and {{ threads }} 'thread(s)'
 
     for i in $(seq 1 {{ n }}); do
-        target/release/memthroughput-test memcpy --size {{ size }} -t {{ threads }} 2>/dev/null | grep -E "[0-9]+\.?[0-9]* GB/s" --only-matching
+        target/release/memthroughput-test memcpy --size {{ size }} -t {{ threads }}
     done
 
 run n='20' size='4294967296':
