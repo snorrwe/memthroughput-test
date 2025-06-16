@@ -1,5 +1,7 @@
 mod fmtbytes;
 
+use std::alloc::Layout;
+
 use clap::Parser;
 use clap_derive::{Parser, Subcommand};
 
@@ -43,15 +45,23 @@ fn print_throughput_ghz(bytes_per_sec: f64) {
     println!("{}/s", Bytes(bytes_per_sec));
 }
 
+fn alloc_buffer(size: usize) -> Box<[u8]> {
+    unsafe {
+        let buf = std::alloc::alloc(Layout::from_size_align(size, 64).unwrap());
+        let slice = std::slice::from_raw_parts_mut(buf, size);
+        Box::from_raw(slice)
+    }
+}
+
 fn memcpy_test(size: usize, threads: usize, repetitions: usize, warmups: usize) {
-    let mut src = Vec::<u8>::with_capacity(size);
-    let mut dst = Vec::<u8>::with_capacity(size);
+    let mut src = alloc_buffer(size);
+    let mut dst = alloc_buffer(size);
 
     // it's important to touch all allocated pages, we don't want to count the page faults the
     // first time they're used
     // also, if we have initialized vectors, then we can use the nice slice APIs
-    src.resize(size, 0xBE);
-    dst.resize(size, 0xEF);
+    src.fill(0xBE);
+    dst.fill(0xEF);
 
     println!(
         "memcpy test of {} on {threads} thread(s)",
@@ -61,7 +71,7 @@ fn memcpy_test(size: usize, threads: usize, repetitions: usize, warmups: usize) 
         let mut start = std::time::Instant::now();
         let end;
         if threads <= 1 {
-            dst.copy_from_slice(src.as_slice());
+            dst.copy_from_slice(&src);
             end = std::time::Instant::now();
         } else {
             let num_threads = threads;
@@ -104,12 +114,12 @@ fn memcpy_test(size: usize, threads: usize, repetitions: usize, warmups: usize) 
 }
 
 fn memset_test(size: usize, threads: usize, repetitions: usize, warmups: usize) {
-    let mut buf = Vec::<u8>::with_capacity(size);
+    let mut buf = alloc_buffer(size);
 
     // it's important to touch all allocated pages, we don't want to count the page faults the
     // first time they're used
     // also, if we have initialized vectors, then we can use the nice slice APIs
-    buf.resize(size, 0xBE);
+    buf.fill(0xBE);
 
     println!(
         "memset test of {} on {threads} thread(s)",
@@ -119,7 +129,7 @@ fn memset_test(size: usize, threads: usize, repetitions: usize, warmups: usize) 
         let mut start = std::time::Instant::now();
         let end;
         if threads <= 1 {
-            buf.as_mut_slice().fill(0xFE);
+            buf.fill(0xFE);
             end = std::time::Instant::now();
         } else {
             let num_threads = threads;
