@@ -33,17 +33,17 @@ struct Cli {
 
 fn fmt_bytes(mut w: impl std::io::Write, bytes: f64) -> std::io::Result<()> {
     if bytes < 1000.0 {
-        write!(w, "{bytes:.2} bytes/s")
-    } else if bytes < 10e3 {
-        write!(w, "{:.2} KB/s", bytes / 1e3)
-    } else if bytes < 10e6 {
-        write!(w, "{:.2} MB/s", bytes / 1e6)
-    } else if bytes < 10e9 {
-        write!(w, "{:.2} GB/s", bytes / 1e9)
-    } else if bytes < 10e12 {
-        write!(w, "{:.2} TB/s", bytes / 1e12)
+        write!(w, "{bytes:.2} bytes")
+    } else if bytes < 1000e3 {
+        write!(w, "{:.2} KB", bytes / 1e3)
+    } else if bytes < 1000e6 {
+        write!(w, "{:.2} MB", bytes / 1e6)
+    } else if bytes < 1000e9 {
+        write!(w, "{:.2} GB", bytes / 1e9)
+    } else if bytes < 1000e12 {
+        write!(w, "{:.2} TB", bytes / 1e12)
     } else {
-        write!(w, "{bytes:.2} bytes/s")
+        write!(w, "{bytes:.2} bytes")
     }
 }
 
@@ -150,5 +150,20 @@ fn main() {
     match args.command {
         Cmd::Memcpy { size, threads } => memcpy_test(size, threads),
         Cmd::Memset { size, threads } => memset_test(size, threads),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_num_formatting() {
+        let mut result = Vec::new();
+        fmt_bytes(&mut result, 13980987619.602848).unwrap();
+
+        let result = String::from_utf8(result).unwrap();
+
+        assert_eq!(result, "13.98 GB");
     }
 }
