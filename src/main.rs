@@ -68,21 +68,29 @@ fn memcpy_test(size: usize, threads: usize, repetitions: usize, warmups: usize) 
 
             let latch = latches::sync::Latch::new(num_threads + 1);
 
-            std::thread::scope(|s| {
+            end = std::thread::scope(|s| {
                 let chunk_size = size.div_ceil(num_threads);
                 debug_assert!(chunk_size * num_threads >= size);
+                let mut threads = Vec::with_capacity(num_threads);
                 for (src, dst) in src.chunks(chunk_size).zip(dst.chunks_mut(chunk_size)) {
-                    s.spawn(|| {
+                    threads.push(s.spawn(|| {
                         latch.count_down();
                         latch.wait();
                         dst.copy_from_slice(src);
-                    });
+                        std::time::Instant::now()
+                    }));
                 }
                 latch.count_down();
                 latch.wait();
                 start = std::time::Instant::now();
+
+                let mut end = start;
+                for t in threads {
+                    let tend = t.join().unwrap();
+                    end = end.max(tend);
+                }
+                end
             });
-            end = std::time::Instant::now();
         }
 
         if i >= warmups {
@@ -119,16 +127,24 @@ fn memset_test(size: usize, threads: usize, repetitions: usize, warmups: usize) 
             std::thread::scope(|s| {
                 let chunk_size = size.div_ceil(num_threads);
                 debug_assert!(chunk_size * num_threads >= size);
+                let mut threads = Vec::with_capacity(num_threads);
                 for b in buf.chunks_mut(chunk_size) {
-                    s.spawn(|| {
+                    threads.push(s.spawn(|| {
                         latch.count_down();
                         latch.wait();
                         b.fill(0xFE);
-                    });
+                        std::time::Instant::now()
+                    }));
                 }
                 latch.count_down();
                 latch.wait();
                 start = std::time::Instant::now();
+                let mut end = start;
+                for t in threads {
+                    let tend = t.join().unwrap();
+                    end = end.max(tend);
+                }
+                end
             });
             end = std::time::Instant::now();
         }
