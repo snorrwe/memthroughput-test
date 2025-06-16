@@ -76,8 +76,9 @@ fn memcpy_test(size: usize, threads: usize, repetitions: usize, warmups: usize) 
                     threads.push(s.spawn(|| {
                         latch.count_down();
                         latch.wait();
+                        let start = std::time::Instant::now();
                         dst.copy_from_slice(src);
-                        std::time::Instant::now()
+                        (start, std::time::Instant::now())
                     }));
                 }
                 latch.count_down();
@@ -86,7 +87,8 @@ fn memcpy_test(size: usize, threads: usize, repetitions: usize, warmups: usize) 
 
                 let mut end = start;
                 for t in threads {
-                    let tend = t.join().unwrap();
+                    let (tstart, tend) = t.join().unwrap();
+                    start = start.min(tstart);
                     end = end.max(tend);
                 }
                 end
@@ -132,8 +134,9 @@ fn memset_test(size: usize, threads: usize, repetitions: usize, warmups: usize) 
                     threads.push(s.spawn(|| {
                         latch.count_down();
                         latch.wait();
+                        let start = std::time::Instant::now();
                         b.fill(0xFE);
-                        std::time::Instant::now()
+                        (start, std::time::Instant::now())
                     }));
                 }
                 latch.count_down();
@@ -141,7 +144,8 @@ fn memset_test(size: usize, threads: usize, repetitions: usize, warmups: usize) 
                 start = std::time::Instant::now();
                 let mut end = start;
                 for t in threads {
-                    let tend = t.join().unwrap();
+                    let (tstart, tend) = t.join().unwrap();
+                    start = start.max(tstart);
                     end = end.max(tend);
                 }
                 end
